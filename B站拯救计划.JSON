@@ -1,0 +1,295 @@
+{
+    "root": {
+        "data": {
+            "id": "c1iwnsa4uns0",
+            "created": 1585036823222,
+            "text": "B站拯救计划"
+        },
+        "children": [
+            {
+                "data": {
+                    "id": "c1iwodoubeo0",
+                    "created": 1585036869824,
+                    "text": "下载服务"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "c1iwriu54v40",
+                            "created": 1585037116121,
+                            "text": "接收视频ID接口"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "c1iwsgtp1y00",
+                            "created": 1585037190105,
+                            "text": "接收用户ID接口"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "c1iwsoy89c00",
+                                    "created": 1585037207793,
+                                    "text": "解析用户所有视频ID"
+                                },
+                                "children": [
+                                    {
+                                        "data": {
+                                            "id": "c1ix3amqb080",
+                                            "created": 1585038038629,
+                                            "text": "交给视频ID接口"
+                                        },
+                                        "children": []
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "c1ixa1rfdk00",
+                            "created": 1585038567871,
+                            "text": "任务列表"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "c1ixa76gkjs0",
+                                    "created": 1585038579663,
+                                    "text": "视频列表"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "c1ixa9v6v140",
+                                    "created": 1585038585512,
+                                    "text": "用户列表"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "c1iwt2ngtx40",
+                            "created": 1585037237617,
+                            "text": "解析视频信息"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "c1iwv0yzqfk0",
+                                    "created": 1585037390689,
+                                    "text": "视频封面"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "c1iwv33ii880",
+                                    "created": 1585037395316,
+                                    "text": "视频信息"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "c1iwvetxc3c0",
+                                    "created": 1585037420858,
+                                    "text": "视频分类"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "c1iwvgctuyo0",
+                                    "created": 1585037424177,
+                                    "text": "视频弹幕(后期)"
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "data": {
+                            "id": "c1ix4q86dzs0",
+                            "created": 1585038150941,
+                            "text": "登陆接收COOKIE",
+                            "layout": null
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "c1ix3uoh5k00",
+                            "created": 1585038082270,
+                            "text": "视频下载"
+                        },
+                        "children": [
+                            {
+                                "data": {
+                                    "id": "c1ix4fw5hmo0",
+                                    "created": 1585038128446,
+                                    "text": "判断是否已下载"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "c1ix59mdets0",
+                                    "created": 1585038193158,
+                                    "text": "解析视频"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "c1ix7trxprk0",
+                                    "created": 1585038393759,
+                                    "text": "下载分段"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "c1ix80kouzs0",
+                                    "created": 1585038408558,
+                                    "text": "检查下载是否完整"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "c1ix8710ayo0",
+                                    "created": 1585038422606,
+                                    "text": "视频合并"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "c1ix89vyhvc0",
+                                    "created": 1585038428830,
+                                    "text": "调用FF转码文件"
+                                },
+                                "children": []
+                            },
+                            {
+                                "data": {
+                                    "id": "c1ix8njr4280",
+                                    "created": 1585038458567,
+                                    "text": "写数据库"
+                                },
+                                "children": []
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "c1iwr3ioy340",
+                    "created": 1585037082777,
+                    "text": "存档服务"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "c1ix3raqx140",
+                            "created": 1585038074909,
+                            "text": "登陆COOKIE"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "c1ixb9zq1fc0",
+                            "created": 1585038664151,
+                            "text": "扫描文件"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "c1ixbgwv2ig0",
+                            "created": 1585038679215,
+                            "text": "任务列表"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "c1ix9u0su5s0",
+                            "created": 1585038551023,
+                            "text": "选择至少2个存档服务器"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "c1ixaw5q73s0",
+                            "created": 1585038634039,
+                            "text": "上传视频"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "c1ixbovpf5s0",
+                            "created": 1585038696559,
+                            "text": "修改数据库"
+                        },
+                        "children": []
+                    }
+                ]
+            },
+            {
+                "data": {
+                    "id": "c1iwrc49n3k0",
+                    "created": 1585037101496,
+                    "text": "展示服务"
+                },
+                "children": [
+                    {
+                        "data": {
+                            "id": "c1ixc0aodmo0",
+                            "created": 1585038721409,
+                            "text": "视频列表"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "c1ixc2x3iso0",
+                            "created": 1585038727119,
+                            "text": "视频信息"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "c1ixclf59pk0",
+                            "created": 1585038767392,
+                            "text": "视频播放"
+                        },
+                        "children": []
+                    },
+                    {
+                        "data": {
+                            "id": "c1ixcmzcreo0",
+                            "created": 1585038770791,
+                            "text": "视频搜索"
+                        },
+                        "children": []
+                    }
+                ]
+            }
+        ]
+    },
+    "template": "default",
+    "theme": "fresh-blue",
+    "version": "1.4.43"
+}
