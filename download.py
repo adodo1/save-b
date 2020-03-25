@@ -11,7 +11,7 @@ requests.packages.urllib3.disable_warnings()    # 禁用安全请求警告
 # 3. 选择清晰度
 # 4.
 
-SESSDATA = '2fdc0032%2C1573118311%2Cfd531ea1'
+SESSDATA = '????????????????????????????'
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36',
     'Referer': 'https://www.bilibili.com'
@@ -99,7 +99,6 @@ class BilibiliClient:
 
     # 获取视频细节
     def GetDetails(self, aid):
-        #
         # https://api.bilibili.com/x/web-interface/view?aid=70520063
         url = u'https://api.bilibili.com/x/web-interface/view?aid=%s' % aid
         res = self._session.get(url, headers=HEADERS)
@@ -378,17 +377,17 @@ if __name__ == '__main__':
     # data = bclient.GetDetails(70520063)
     #
 
-    f = open('list.txt', 'rb')
-    text = f.read()
-    f.close()
-    text = text.replace('\r', '')
-    for line in text.split('\n'):
-        print(line)
-        if (line.strip() == ''): continue
-        bclient.DownloadVideos(line)
+    # f = open('list.txt', 'rb')
+    # text = f.read()
+    # f.close()
+    # text = text.replace('\r', '')
+    # for line in text.split('\n'):
+    #     print(line)
+    #     if (line.strip() == ''): continue
+    #     bclient.DownloadVideos(line)
         
-    #aid = '68668952'
-    #bclient.DownloadVideos(aid)
+    aid = '68668952'
+    bclient.DownloadVideos(aid)
     #
     print('OK.')
     
