@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys, os, re, requests, time, json, socket, threading, Queue
+import sys, os, re, requests, time, json, socket, threading, Queue, sqlite3
 from threading import Thread
 #socket.setdefaulttimeout(20)                    # outtime set 20s
 mutex = threading.Lock()                        # 线程锁
@@ -11,7 +11,6 @@ requests.packages.urllib3.disable_warnings()    # 禁用安全请求警告
 # 3. 选择清晰度
 # 4.
 
-SESSDATA = '????????????????????????????'
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36',
     'Referer': 'https://www.bilibili.com'
@@ -20,8 +19,12 @@ PROXIES = {
     #"https": "http://127.0.0.1:8087"
     #'https': 'socks5://127.0.0.1:1080'
 }
-BLOCK_SIZE = 2 * 1024 * 1024            # 分块大小
-MAX_THREADS = 32                        # 最大线程
+TIMEOUT = 30
+BLOCK_SIZE = 2 * 1024 * 1024                    # 分块大小
+MAX_THREADS = 32                                # 最大线程
+CACHE_DIR = u'./cache/'                         # 缓存目录
+DB_FILE = u'./datas/datas.db'                   # 数据文件
+SESSDATA = u'7bbc68b0%2C1600608099%2Ce0591*31'  # COOKIE
 
 
 ##########################################################################
@@ -87,14 +90,13 @@ class WorkerPool:
 
 class BilibiliClient:
     # 初始化
-    def __init__(self, basedir=u'./data/'):
+    def __init__(self, conn, sessdata, cachedir):
         # 登陆Bilibili
-        if (os.path.exists('SESSDATA.txt')):
-            SESSDATA = open('SESSDATA.txt', 'rb').read()
+        self._conn = conn
         self._session = None
         self._session = requests.session()
-        self._session.cookies.set('SESSDATA', SESSDATA)
-        self._basedir = basedir
+        self._session.cookies.set('SESSDATA', sessdata)
+        self._cachedir = cachedir
         self._count = 0
 
     # 获取视频细节
@@ -122,6 +124,27 @@ class BilibiliClient:
                 print(u'%03d: %s - %s - %s' % (index, duration, cid, vname))
             return result
 
+    # 获取用户所有视频信息
+    def GetSubmitVideos(self, mid, page=0, pagesize=20):
+        # https://space.bilibili.com/ajax/member/getSubmitVideos?mid=11433771&page=1&pagesize=100
+        # 如果PAGE等于0 递归返回所有
+        videos = []
+        if (page == 0): url = u'https://space.bilibili.com/ajax/member/getSubmitVideos?mid={0}&page={1}&pagesize={2}'.format(mid, 1, pagesize)
+        else: url = u'https://space.bilibili.com/ajax/member/getSubmitVideos?mid={0}&page={1}&pagesize={2}'.format(mid, page, pagesize)
+        #
+        res = self.GetJson(url)
+        if (res == None or res['status'] == False): raise Exception('fail to mid: %s' % mid)
+        count = res['data']['count']
+        pages = res['data']['pages']
+        for item in res['data']['vlist']: videos.append(item)
+        #
+        if (page == 0):
+            for n in range(2, (count + pagesize - 1) / pagesize + 1):
+                morevideos = self.GetSubmitVideos(mid, n, pagesize)
+                videos.extend(morevideos)
+
+        return videos
+
     # 下载视频
     def DownloadVideos(self, aid, section=0, score=80):
         # aid: 视频AV号
@@ -131,7 +154,7 @@ class BilibiliClient:
         # 1. 先解析视频
         # 2. 再分P下载
         # 检查是否完成 @DONE 文件
-        alldonefile = u'%s/@DONE_%s' % (self._basedir, aid)
+        alldonefile = u'%s/@DONE_%s' % (self._cachedir, aid)
         if (os.path.exists(alldonefile)): return
         #
         data = self.GetDetails(aid)
@@ -142,7 +165,7 @@ class BilibiliClient:
             part = item['part']
             if (section>0 and page!=section): continue
             # 新建目录 下载
-            outdir = u'%s/%s━%s/%s━%s/' % (self._basedir, aid, self.StrToName(title), cid, self.StrToName(part))
+            outdir = u'%s/%s━%s/%s━%s/' % (self._cachedir, aid, self.StrToName(title), cid, self.StrToName(part))
             self.DownloadSection(aid, cid, score, self.StrToName(part), outdir)
             
         # 通过@DONE检查数据是否都下载好了
@@ -153,7 +176,7 @@ class BilibiliClient:
             part = item['part']
             if (section>0 and page!=section): continue
             # 新建目录 下载
-            outdir = u'%s/%s━%s/%s━%s/' % (self._basedir, aid, self.StrToName(title), cid, self.StrToName(part))
+            outdir = u'%s/%s━%s/%s━%s/' % (self._cachedir, aid, self.StrToName(title), cid, self.StrToName(part))
             donefile = '%s%s' % (outdir, '@DONE')
             if (os.path.exists(donefile)==False): success = False
         #
@@ -206,6 +229,7 @@ class BilibiliClient:
                 index = index + 1
         return
 
+    # 下载文件
     def DownloadFile(self, url, outdir, namewithoutext):
         # 下载文件
         if (os.path.exists(outdir) == False): os.makedirs(outdir)
@@ -240,9 +264,24 @@ class BilibiliClient:
 
         # 合并
         self.UnionFile(outdir, namewithoutext, size)
-        
-            
-        
+
+    # 获取JSON
+    def GetJson(self, url):
+        global HEADERS
+        global PROXIES
+        global TIMEOUT
+
+        # 重试3次
+        for i in range(3):
+            try:
+                res = self._session.get(url, proxies=PROXIES, headers=HEADERS, timeout=TIMEOUT, verify=False)
+                data = json.loads(res.text)
+                return data
+            except Exception as ex: pass
+        # 错误返回空
+        return None
+
+    # 合并文件
     def UnionFile(self, outdir, name, size):
         # 检查数据是否全部完成 如果完成 合并数据
         # 检查所有block文件数量
@@ -260,7 +299,7 @@ class BilibiliClient:
         else:
             print('error done.')
 
-
+    # 下载分块
     def DownloadPart(self, url, outdir, name, index, start, end):
         # 下载分块
         try:
@@ -282,6 +321,7 @@ class BilibiliClient:
             print (u'error download in: %s' % ex)
             mutex.release()
 
+    # 下载数据
     def DownloadData(self, url, start, end):
         # 下载数据
         # 下载流文件
@@ -335,6 +375,7 @@ class BilibiliClient:
         #
         return data
 
+    # 获取文件大小
     def GetSize(self, url):
         # 获取文件大小
         res = self._session.get(url, headers=dict(HEADERS, **{'Range': 'bytes=0-1'}), proxies=PROXIES, stream=True, verify=False)
@@ -344,6 +385,7 @@ class BilibiliClient:
         print('size: %s' % size)
         return size
 
+    # 检查当前用户信息
     def CheckUser(self):
         # 检查当前登陆用户信息
         url = u'https://api.bilibili.com/x/space/myinfo?jsonp=jsonp'
@@ -356,22 +398,41 @@ class BilibiliClient:
             print(u'user: %s' % data['data']['name'])
             print(u'mid: %s' % data['data']['mid'])
 
+    # 通过AVID添加任务
+    def TasksWithAVID(self, avid):
+        pass
+
+    # 通过BVID添加任务
+    def TasksWithBVID(self, bvid):
+        pass
+
+    
 
 
-if __name__ == '__main__':
-    #
+def main():
+    # 程序入口
     print('[==DoDo==]')
     print('Bilibile Download.')
     print('Encode: %s' %  sys.getdefaultencoding())
     print('APP ID: %s' % os.getpid())
     print('===================================================')
     #
-    basedir = u'./data_dance/'
-    #
-    bclient = BilibiliClient(basedir)
+    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+    bclient = BilibiliClient(conn, SESSDATA, CACHE_DIR)
     bclient.CheckUser()
+
+
+if __name__ == '__main__':
     #
-    # size = bclient.GetSigze('https://www.runoob.com/try/demo_source/movie.mp4')
+
+    #
+    # cachedir = u'./data_dance/'
+    # #
+    # bclient = BilibiliClient(cachedir)
+    # bclient.CheckUser()
+
+    #
+    # size = bclient.GetSize('https://www.runoob.com/try/demo_source/movie.mp4')
     # bclient.DownloadFile('http://upos-hz-mirrorcosu.acgvideo.com/upgcxcode/57/57/53055757/53055757_da2-1-80.flv?e=ig8euxZM2rNcNbhj7zUVhoMz7buBhwdEto8g5X10ugNcXBlqNxHxNEVE5XREto8KqJZHUa6m5J0SqE85tZvEuENvNo8g2ENvNo8i8o859r1qXg8xNEVE5XREto8GuFGv2U7SuxI72X6fTr859r1qXg8gNEVE5XREto8z5JZC2X2gkX5L5F1eTX1jkXlsTXHeux_f2o859IB_&uipk=5&nbs=1&deadline=1570768436&gen=playurl&os=cosu&oi=1866155180&trid=2142ab14370a431fbdcb8caf14e819aau&platform=pc&upsig=b50c5ae19b513ca9620ad61defe44f25&uparams=e,uipk,nbs,deadline,gen,os,oi,trid,platform&mid=955723', basedir, 'test')
     # data = bclient.GetDetails(30406774)
     # data = bclient.GetDetails(70520063)
@@ -386,8 +447,12 @@ if __name__ == '__main__':
     #     if (line.strip() == ''): continue
     #     bclient.DownloadVideos(line)
         
-    aid = '68668952'
-    bclient.DownloadVideos(aid)
+    # aid = '68668952'
+    # bclient.DownloadVideos(aid)
+
+    # res = bclient.GetSubmitVideos(11433771, 0, 25)
+
+    main()
     #
     print('OK.')
     
