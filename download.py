@@ -99,30 +99,14 @@ class BilibiliClient:
         self._cachedir = cachedir
         self._count = 0
 
-    # 获取视频细节
-    def GetDetails(self, aid):
+    # 获取视频细节 自动判断AVID 和 BVID
+    def GetDetails(self, vid):
         # https://api.bilibili.com/x/web-interface/view?aid=70520063
-        url = u'https://api.bilibili.com/x/web-interface/view?aid=%s' % aid
-        res = self._session.get(url, headers=HEADERS)
-        data = json.loads(res.text)
-        if (data['code'] != 0):
-            # 解析失败
-            print data['message']
-            sys.exit(data['code'])
-        else:
-            # 解析成功
-            result = data['data']
-            print(u'aid: %s' % data['data']['aid'])
-            print(u'title: %s' % data['data']['title'])
-            print(u'count: %s' % data['data']['videos'])
-            print(u'===================================================')
-            for page in data['data']['pages']:
-                index = page['page']
-                duration = '%03d:%02d' % divmod(page['duration'], 60)
-                cid = page['cid']
-                vname = page['part']
-                print(u'%03d: %s - %s - %s' % (index, duration, cid, vname))
-            return result
+        if (str(vid).lower().startswith('bv')):
+            url = u'https://api.bilibili.com/x/web-interface/view?bvid=%s' % vid
+        else: url = u'https://api.bilibili.com/x/web-interface/view?aid=%s' % vid
+        data = self.GetJson(url)
+        return data
 
     # 获取用户所有视频信息
     def GetSubmitVideos(self, mid, page=0, pagesize=20):
@@ -279,7 +263,7 @@ class BilibiliClient:
                 return data
             except Exception as ex: pass
         # 错误返回空
-        return None
+        raise Exception('faild url: ' + url)
 
     # 合并文件
     def UnionFile(self, outdir, name, size):
@@ -398,15 +382,56 @@ class BilibiliClient:
             print(u'user: %s' % data['data']['name'])
             print(u'mid: %s' % data['data']['mid'])
 
-    # 通过AVID添加任务
-    def TasksWithAVID(self, avid):
+
+
+
+# 任务中心
+class TasksServer:
+    # 初始化
+    def __init__(self, conn, bclient):
+        #
+        self._conn = conn
+        self._bclient = bclient
+
+
+    # 添加任务
+    def AddTask(self, vid):
+        #
+        res = self._bclient.BilibiliClient()
+        # 查询任务列表是否有
+        if (res['code']!=0): raise Exception(res['message'])
+        data = res['data']
+        bvid = data['bvid']             # BVID
+        aid = data['aid']               # AID
+        videos = data['videos']         # 视频数量
+        tid = data['tid']               # 视频分类
+        tname = data['tname']           # 视频分类
+        pic = data['pic']               # 视频封面
         pass
 
     # 通过BVID添加任务
     def TasksWithBVID(self, bvid):
         pass
 
-    
+    # 获取任务列表
+    def TasksList(self):
+        pass
+
+    def SetCookie(self, cookie):
+        pass
+
+class DownloadServer:
+    # 初始化
+    def __init__(self, conn):
+        pass
+
+    # 循环检查任务
+    def CheckTasks(self):
+        #
+        pass
+
+
+
 
 
 def main():
@@ -430,6 +455,8 @@ if __name__ == '__main__':
     # #
     # bclient = BilibiliClient(cachedir)
     # bclient.CheckUser()
+
+    print(divmod(123, 60))
 
     #
     # size = bclient.GetSize('https://www.runoob.com/try/demo_source/movie.mp4')
