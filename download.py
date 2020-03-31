@@ -382,8 +382,18 @@ class BilibiliClient:
             print(u'user: %s' % data['data']['name'])
             print(u'mid: %s' % data['data']['mid'])
 
+    # BVID转AID
+    def BVID2AID(self, bvid):
+        # 算法关键字
+        # 8728348608 100618342136696320 177451812 58进制 0x2084007c0
+        # fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF
+        if (bvid.startswith('BV')): bvid = bvid[2:]
+        pass
 
+    # AID转BVID
+    def AID2BVID(self, aid):
 
+        pass
 
 # 任务中心
 class TasksServer:
@@ -447,6 +457,25 @@ def main():
     bclient.CheckUser()
 
 
+alphabet = 'fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF'
+
+
+def dec(x):
+    r = 0
+    for i, v in enumerate([11, 10, 3, 8, 4, 6]):
+        r += alphabet.find(x[v]) * 58 ** i
+    return (r - 0x2084007c0) ^ 0x0a93b324
+
+
+def enc(x):
+    x = (x ^ 0x0a93b324) + 0x2084007c0
+    r = list('BV1**4*1*7**')
+    for v in [11, 10, 3, 8, 4, 6]:
+        x, d = divmod(x, 58)
+        r[v] = alphabet[d]
+    return ''.join(r)
+
+
 if __name__ == '__main__':
     #
 
@@ -455,6 +484,9 @@ if __name__ == '__main__':
     # #
     # bclient = BilibiliClient(cachedir)
     # bclient.CheckUser()
+
+
+    print dec('BV17x411w7KC')
 
     print(divmod(123, 60))
 
