@@ -98,6 +98,7 @@ class BilibiliClient:
         self._session.cookies.set('SESSDATA', sessdata)
         self._cachedir = cachedir
         self._count = 0
+        self.HASH58 = 'fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF'
 
     # 获取视频细节 自动判断AVID 和 BVID
     def GetDetails(self, vid):
@@ -387,13 +388,21 @@ class BilibiliClient:
         # 算法关键字
         # 8728348608 100618342136696320 177451812 58进制 0x2084007c0
         # fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF
-        if (bvid.startswith('BV')): bvid = bvid[2:]
-        pass
+        r = 0
+        for i, v in enumerate([11, 10, 3, 8, 4, 6]):
+            r += self.HASH58.find(bvid[v]) * 58 ** i
+        return (r - 0x2084007c0) ^ 0x0a93b324
 
     # AID转BVID
     def AID2BVID(self, aid):
+        aid = (aid ^ 0x0a93b324) + 0x2084007c0
+        r = list('BV1**4*1*7**')
+        for v in [11, 10, 3, 8, 4, 6]:
+            aid, d = divmod(aid, 58)
+            r[v] = self.HASH58[d]
+        return ''.join(r)
 
-        pass
+
 
 # 任务中心
 class TasksServer:
@@ -403,25 +412,103 @@ class TasksServer:
         self._conn = conn
         self._bclient = bclient
 
+    # 添加或更新视频作者信息
+    def AddOwner(self, owner):
+        mid = owner['mid']
+        name = owner['name']
+        face = owner['face']
+
+        command = r'select MID from OWNER where MID=?'
+        cursor = self._conn.cursor()
+        cursor.execute(command, (mid,))
+        record = cursor.fetchone()
+        cursor.close()
+
+        #
+        if (record):
+            # 更新原来的视频信息
+            command = r'update OWNER set NAME=?, FACE=? where MID=?'
+            args = (name, face, mid)
+            cursor = self._conn.cursor()
+            cursor.execute(command, args)
+            cursor.close()
+            self._conn.commit()
+        else:
+            # 插入新记录
+            command = r'insert into OWNER(MID, NAME, FACE) values(?,?,?)'
+            args = (mid, name, face)
+            cursor = self._conn.cursor()
+            cursor.execute(command, args)
+            cursor.close()
+            self._conn.commit()
+        #
+        return mid
 
     # 添加任务
     def AddTask(self, vid):
         #
-        res = self._bclient.BilibiliClient()
+        res = self._bclient.GetDetails(vid)
         # 查询任务列表是否有
         if (res['code']!=0): raise Exception(res['message'])
         data = res['data']
+        #
         bvid = data['bvid']             # BVID
         aid = data['aid']               # AID
         videos = data['videos']         # 视频数量
         tid = data['tid']               # 视频分类
         tname = data['tname']           # 视频分类
         pic = data['pic']               # 视频封面
+        title = data['title']           # 视频标题
+        pubdate = data['pubdate']       # 发布时间 秒
+        ctime = data['ctime']           # 视频审核通过时间 秒
+        desc = data['desc']             # 视频简介
+        state = data['state']           # 视频状态
+        attribute = data['attribute']   # 视频属性
+        duration = data['duration']     # 视频总时长 秒
+        rights = data['rights']         # 版权相关
+        owner = data['owner']           # 视频作者
+        stat = data['stat']             # 视频统计
+        dynamic = data['dynamic']       # 视频动态
+        cid = data['cid']               # 首页视频的CID
+        dimension = data['dimension']   # 首页视频的分辨率
+        no_cache = data['no_cache']     # 无缓存
+        pages = data['pages']           # 所有分段视频
+        subtitle = data['subtitle']     # 副标题
+        mission_id = data['mission_id'] # 任务ID
+
+        # 1. 存储视频作者信息
+        # 2. 现将信息存档
+        # 3. 解析所有分P 加入任务列表
+
+        mid = self.AddOwner(owner)
+
+        command = r'select BVID from VIDEOS where BVID=?'
+        cursor = self._conn.cursor()
+        cursor.execute(command, (bvid,))
+        record = cursor.fetchone()
+        cursor.close()
+
+        #
+        if (record):
+            # 更新原来的视频信息
+            command = r'update VIDEOS set AID=?, VIDEOS=?, TID=?, TNAME=?, PIC=?, ' \
+                      r'TITLE=?, PUBDATE=?, CTIME=?, DESC=?, STATE=?, ATTRIBUTE=?, ' \
+                      r'DURATION=?, RIGHTS=?, OWNER=?, STAT=?, DYNAMIC=?, CID=?, ' \
+                      r'DIMENSION=?, NO_CACHE=?, PAGES=?, SUBTITLE=?, MISSION_ID=?' \
+                      r'where BVID=?'
+            args = (bvid, aid, videos, tid, tname, pic, title, pubdate, ctime, desc,
+                    state, attribute, duration, rights, owner['mid'], stat, dynamic, cid,
+                    dimension, no_cache, pages, subtitle, mission_id)
+            cursor = self._conn.cursor()
+            cursor.execute(command, args)
+            self._conn.commit()
+        else:
+            # 插入新记录
+            pass
+
+        cursor.close()
         pass
 
-    # 通过BVID添加任务
-    def TasksWithBVID(self, bvid):
-        pass
 
     # 获取任务列表
     def TasksList(self):
@@ -455,25 +542,15 @@ def main():
     conn = sqlite3.connect(DB_FILE, check_same_thread=False)
     bclient = BilibiliClient(conn, SESSDATA, CACHE_DIR)
     bclient.CheckUser()
+    # print bclient.BVID2AID('BV17x411w7KC')
+    # print bclient.AID2BVID(170001)
 
+    res = bclient.GetDetails('BV1U7411t7sG')
+    print res
 
-alphabet = 'fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF'
+    taskServer = TasksServer(conn, bclient)
+    taskServer.AddTask('BV1U7411t7sG')
 
-
-def dec(x):
-    r = 0
-    for i, v in enumerate([11, 10, 3, 8, 4, 6]):
-        r += alphabet.find(x[v]) * 58 ** i
-    return (r - 0x2084007c0) ^ 0x0a93b324
-
-
-def enc(x):
-    x = (x ^ 0x0a93b324) + 0x2084007c0
-    r = list('BV1**4*1*7**')
-    for v in [11, 10, 3, 8, 4, 6]:
-        x, d = divmod(x, 58)
-        r[v] = alphabet[d]
-    return ''.join(r)
 
 
 if __name__ == '__main__':
@@ -486,7 +563,6 @@ if __name__ == '__main__':
     # bclient.CheckUser()
 
 
-    print dec('BV17x411w7KC')
 
     print(divmod(123, 60))
 
