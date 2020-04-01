@@ -641,7 +641,7 @@ def main():
 
 
     # 循环我关注的UP主
-    mids = [414878461]
+    mids = [7584632]
 
     for mid in mids:
         taskServer = TasksServer(conn, bclient)
@@ -675,7 +675,11 @@ if __name__ == '__main__':
     # bclient = BilibiliClient(cachedir)
     # bclient.CheckUser()
 
+    # 已知BUG
+    # av7748745 跳转到 ep
 
+    # 需要完成
+    # 分P更新后 视频时间是否修改 av3179115 pubdate: 1446820390 ctime: 1497425394
 
     print(divmod(123, 60))
 
