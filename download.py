@@ -498,7 +498,6 @@ class TasksServer:
         no_cache = data['no_cache']         # 无缓存
         pages = data['pages']               # 所有分段视频
         subtitle = data['subtitle']         # 联动
-        mission_id = data['mission_id']     # 任务ID
         #
         mid = owner['mid']                  # 作者ID
         rights = json.dumps(rights)         # 版权
@@ -518,11 +517,11 @@ class TasksServer:
             command = r'update VIDEOS set AID=?, VIDEOS=?, TID=?, TNAME=?, PIC=?, ' \
                       r'TITLE=?, PUBDATE=?, CTIME=?, DESC=?, STATE=?, ATTRIBUTE=?, ' \
                       r'DURATION=?, RIGHTS=?, OWNER=?, STAT=?, DYNAMIC=?, CID=?, ' \
-                      r'DIMENSION=?, NO_CACHE=?, SUBTITLE=?, MISSION_ID=?' \
+                      r'DIMENSION=?, NO_CACHE=?, SUBTITLE=?' \
                       r'where BVID=?'
             args = (aid, videos, tid, tname, pic, title, pubdate, ctime, desc,
                     state, attribute, duration, rights, mid, stat, dynamic, cid,
-                    dimension, no_cache, subtitle, mission_id, bvid)
+                    dimension, no_cache, subtitle, bvid)
             cursor = self._conn.cursor()
             cursor.execute(command, args)
         else:
@@ -530,11 +529,11 @@ class TasksServer:
             command = r'insert into VIDEOS(BVID, AID, VIDEOS, TID, TNAME, PIC, ' \
                       r'TITLE, PUBDATE, CTIME, DESC, STATE, ATTRIBUTE, ' \
                       r'DURATION, RIGHTS, OWNER, STAT, DYNAMIC, CID, ' \
-                      r'DIMENSION, NO_CACHE, SUBTITLE, MISSION_ID) ' \
-                      r'values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                      r'DIMENSION, NO_CACHE, SUBTITLE) ' \
+                      r'values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
             args = (bvid, aid, videos, tid, tname, pic, title, pubdate, ctime, desc,
                     state, attribute, duration, rights, mid, stat, dynamic, cid,
-                    dimension, no_cache, subtitle, mission_id)
+                    dimension, no_cache, subtitle)
             cursor = self._conn.cursor()
             cursor.execute(command, args)
         #
@@ -543,8 +542,37 @@ class TasksServer:
 
         #
 
+    # 添加任务列表
+    def AddTasks(self, pages, bvid, aid=None):
+        cursor = self._conn.cursor()
+        for item in pages:
+            cid = item['cid']                   # CID
+            page = item['page']                 # 当前分P
+            part = item['part']                 # 分P标题
+            duration = item['duration']         # 时长
+            dimension = item['dimension']       # 分辨率
+            #
+            dimension = json.dumps(dimension)   # 分辨率
+
+            command = r'select STATE from TASKS where BVID=? and CID=?'
+            cursor.execute(command, (bvid, cid))
+            record = cursor.fetchone()
+
+            #
+            if (record):
+                # 如果有记录 跳过 无论是否完成 都在任务列表中了
+                continue
+            else:
+                # 插入新记录
+                command = r'insert into TASKS(BVID, AID, CID, STATE, CTIME) values(?,?,?,?,?)'
+                args = (bvid, aid, cid, 0, int(time.time()))
+                cursor.execute(command, args)
+        #
+        cursor.close()
+        self._conn.commit()
+
     # 添加任务
-    def AddTask(self, vid):
+    def PushTask(self, vid):
         #
         res = self._bclient.GetDetails(vid)
         # 查询任务列表是否有
@@ -562,7 +590,8 @@ class TasksServer:
         self.AddPages(pages, bvid, aid)
         # 3. 现将信息存档
         self.AddVideos(data)
-        pass
+        # 4. 添加到任务列表
+        self.AddTasks(pages, bvid, aid)
 
 
     # 获取任务列表
@@ -600,11 +629,38 @@ def main():
     # print bclient.BVID2AID('BV17x411w7KC')
     # print bclient.AID2BVID(170001)
 
-    res = bclient.GetDetails('BV1U7411t7sG')
-    print res
+    # taskServer = TasksServer(conn, bclient)
+    # res = bclient.GetSubmitVideos(11433771, 0, 25)
+    #
+    # for item in res:
+    #     title = item['title']
+    #     aid = item['aid']
+    #     print '%d - %s' % (aid, title)
+    #     taskServer.PushTask(aid)
 
-    taskServer = TasksServer(conn, bclient)
-    taskServer.AddTask('BV1U7411t7sG')
+
+
+    # 循环我关注的UP主
+    mids = [414878461]
+
+    for mid in mids:
+        taskServer = TasksServer(conn, bclient)
+        res = bclient.GetSubmitVideos(mid, 0, 25)
+
+        num = 0
+        count = len(res)
+        for item in res:
+            num = num + 1
+            title = item['title']
+            aid = item['aid']
+            print '(% 4d/%d): % 5d - %d - %s' % (num, count, mid, aid, title)
+            taskServer.PushTask(aid)
+
+    # res = bclient.GetDetails('BV1U7411t7sG')
+    # print res
+    #
+    # taskServer = TasksServer(conn, bclient)
+    # taskServer.PushTask('BV1U7411t7sG')
 
     print 'done.'
 
