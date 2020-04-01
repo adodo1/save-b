@@ -418,11 +418,10 @@ class TasksServer:
         name = owner['name']
         face = owner['face']
 
-        command = r'select MID from OWNER where MID=?'
+        command = r'select MID from OWNER where MID=? limit 1'
         cursor = self._conn.cursor()
         cursor.execute(command, (mid,))
         record = cursor.fetchone()
-        cursor.close()
 
         #
         if (record):
@@ -431,18 +430,118 @@ class TasksServer:
             args = (name, face, mid)
             cursor = self._conn.cursor()
             cursor.execute(command, args)
-            cursor.close()
-            self._conn.commit()
         else:
             # 插入新记录
             command = r'insert into OWNER(MID, NAME, FACE) values(?,?,?)'
             args = (mid, name, face)
             cursor = self._conn.cursor()
             cursor.execute(command, args)
-            cursor.close()
-            self._conn.commit()
         #
+        cursor.close()
+        self._conn.commit()
         return mid
+
+    # 添加所有分P
+    def AddPages(self, pages, bvid, aid=None):
+        #
+        cursor = self._conn.cursor()
+        for item in pages:
+            cid = item['cid']                   # CID
+            page = item['page']                 # 当前分P
+            part = item['part']                 # 分P标题
+            duration = item['duration']         # 时长
+            dimension = item['dimension']       # 分辨率
+            #
+            dimension = json.dumps(dimension)   # 分辨率
+
+            command = r'select BVID from PAGES where BVID=? and CID=? limit 1'
+            cursor.execute(command, (bvid, cid))
+            record = cursor.fetchone()
+
+            #
+            if (record):
+                # 更新原来的视频信息
+                command = r'update PAGES set AID=?, PAGE=?, PART=?, DURATION=?, DIMENSION=? where BVID=? and CID=?'
+                args = (aid, page, part, duration, dimension, bvid, cid)
+                cursor.execute(command, args)
+            else:
+                # 插入新记录
+                command = r'insert into PAGES(BVID, AID, CID, PAGE, PART, DURATION, DIMENSION) values(?,?,?,?,?,?,?)'
+                args = (bvid, aid, cid, page, part, duration, dimension)
+                cursor.execute(command, args)
+        #
+        cursor.close()
+        self._conn.commit()
+
+    # 添加视频信息
+    def AddVideos(self, data):
+        #
+        bvid = data['bvid']                 # BVID
+        aid = data['aid']                   # AID
+        videos = data['videos']             # 视频数量
+        tid = data['tid']                   # 视频分类
+        tname = data['tname']               # 视频分类
+        pic = data['pic']                   # 视频封面
+        title = data['title']               # 视频标题
+        pubdate = data['pubdate']           # 发布时间 秒
+        ctime = data['ctime']               # 视频审核通过时间 秒
+        desc = data['desc']                 # 视频简介
+        state = data['state']               # 视频状态
+        attribute = data['attribute']       # 视频属性
+        duration = data['duration']         # 视频总时长 秒
+        rights = data['rights']             # 版权相关
+        owner = data['owner']               # 视频作者
+        stat = data['stat']                 # 视频统计
+        dynamic = data['dynamic']           # 视频动态
+        cid = data['cid']                   # 首页视频的CID
+        dimension = data['dimension']       # 首页视频的分辨率
+        no_cache = data['no_cache']         # 无缓存
+        pages = data['pages']               # 所有分段视频
+        subtitle = data['subtitle']         # 联动
+        mission_id = data['mission_id']     # 任务ID
+        #
+        mid = owner['mid']                  # 作者ID
+        rights = json.dumps(rights)         # 版权
+        stat = json.dumps(stat)             # 统计
+        dimension = json.dumps(dimension)   # 分辨率
+        subtitle = json.dumps(subtitle)     # 联动
+
+        #
+        command = r'select BVID from VIDEOS where BVID=? limit 1'
+        cursor = self._conn.cursor()
+        cursor.execute(command, (bvid,))
+        record = cursor.fetchone()
+
+        #
+        if (record):
+            # 更新原来的视频信息
+            command = r'update VIDEOS set AID=?, VIDEOS=?, TID=?, TNAME=?, PIC=?, ' \
+                      r'TITLE=?, PUBDATE=?, CTIME=?, DESC=?, STATE=?, ATTRIBUTE=?, ' \
+                      r'DURATION=?, RIGHTS=?, OWNER=?, STAT=?, DYNAMIC=?, CID=?, ' \
+                      r'DIMENSION=?, NO_CACHE=?, SUBTITLE=?, MISSION_ID=?' \
+                      r'where BVID=?'
+            args = (aid, videos, tid, tname, pic, title, pubdate, ctime, desc,
+                    state, attribute, duration, rights, mid, stat, dynamic, cid,
+                    dimension, no_cache, subtitle, mission_id, bvid)
+            cursor = self._conn.cursor()
+            cursor.execute(command, args)
+        else:
+            # 插入新记录
+            command = r'insert into VIDEOS(BVID, AID, VIDEOS, TID, TNAME, PIC, ' \
+                      r'TITLE, PUBDATE, CTIME, DESC, STATE, ATTRIBUTE, ' \
+                      r'DURATION, RIGHTS, OWNER, STAT, DYNAMIC, CID, ' \
+                      r'DIMENSION, NO_CACHE, SUBTITLE, MISSION_ID) ' \
+                      r'values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+            args = (bvid, aid, videos, tid, tname, pic, title, pubdate, ctime, desc,
+                    state, attribute, duration, rights, mid, stat, dynamic, cid,
+                    dimension, no_cache, subtitle, mission_id)
+            cursor = self._conn.cursor()
+            cursor.execute(command, args)
+        #
+        self._conn.commit()
+        cursor.close()
+
+        #
 
     # 添加任务
     def AddTask(self, vid):
@@ -451,62 +550,18 @@ class TasksServer:
         # 查询任务列表是否有
         if (res['code']!=0): raise Exception(res['message'])
         data = res['data']
-        #
-        bvid = data['bvid']             # BVID
-        aid = data['aid']               # AID
-        videos = data['videos']         # 视频数量
-        tid = data['tid']               # 视频分类
-        tname = data['tname']           # 视频分类
-        pic = data['pic']               # 视频封面
-        title = data['title']           # 视频标题
-        pubdate = data['pubdate']       # 发布时间 秒
-        ctime = data['ctime']           # 视频审核通过时间 秒
-        desc = data['desc']             # 视频简介
-        state = data['state']           # 视频状态
-        attribute = data['attribute']   # 视频属性
-        duration = data['duration']     # 视频总时长 秒
-        rights = data['rights']         # 版权相关
-        owner = data['owner']           # 视频作者
-        stat = data['stat']             # 视频统计
-        dynamic = data['dynamic']       # 视频动态
-        cid = data['cid']               # 首页视频的CID
-        dimension = data['dimension']   # 首页视频的分辨率
-        no_cache = data['no_cache']     # 无缓存
-        pages = data['pages']           # 所有分段视频
-        subtitle = data['subtitle']     # 副标题
-        mission_id = data['mission_id'] # 任务ID
+        bvid = data['bvid']
+        aid = data['aid']
+        owner = data['owner']
+        pages = data['pages']
+
 
         # 1. 存储视频作者信息
-        # 2. 现将信息存档
-        # 3. 解析所有分P 加入任务列表
-
-        mid = self.AddOwner(owner)
-
-        command = r'select BVID from VIDEOS where BVID=?'
-        cursor = self._conn.cursor()
-        cursor.execute(command, (bvid,))
-        record = cursor.fetchone()
-        cursor.close()
-
-        #
-        if (record):
-            # 更新原来的视频信息
-            command = r'update VIDEOS set AID=?, VIDEOS=?, TID=?, TNAME=?, PIC=?, ' \
-                      r'TITLE=?, PUBDATE=?, CTIME=?, DESC=?, STATE=?, ATTRIBUTE=?, ' \
-                      r'DURATION=?, RIGHTS=?, OWNER=?, STAT=?, DYNAMIC=?, CID=?, ' \
-                      r'DIMENSION=?, NO_CACHE=?, PAGES=?, SUBTITLE=?, MISSION_ID=?' \
-                      r'where BVID=?'
-            args = (bvid, aid, videos, tid, tname, pic, title, pubdate, ctime, desc,
-                    state, attribute, duration, rights, owner['mid'], stat, dynamic, cid,
-                    dimension, no_cache, pages, subtitle, mission_id)
-            cursor = self._conn.cursor()
-            cursor.execute(command, args)
-            self._conn.commit()
-        else:
-            # 插入新记录
-            pass
-
-        cursor.close()
+        self.AddOwner(owner)
+        # 2. 解析所有分P 加入任务列表
+        self.AddPages(pages, bvid, aid)
+        # 3. 现将信息存档
+        self.AddVideos(data)
         pass
 
 
@@ -550,6 +605,8 @@ def main():
 
     taskServer = TasksServer(conn, bclient)
     taskServer.AddTask('BV1U7411t7sG')
+
+    print 'done.'
 
 
 
