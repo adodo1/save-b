@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys, os, re, requests, time, json, socket, threading, Queue, sqlite3
+import sys, os, re, requests, time, json, socket, threading, Queue, sqlite3, math
 from threading import Thread
 #socket.setdefaulttimeout(20)                    # outtime set 20s
 mutex = threading.Lock()                        # 线程锁
@@ -109,6 +109,35 @@ class BilibiliClient:
         data = self.GetJson(url)
         return data
 
+    # 无论给你什么ID 都给我返回AID
+    def GetAID(self, vid):
+        if (str(vid).lower().startswith('bv')): return self.BVID2AID(vid)
+        else: return int(vid)
+
+    # 无论给你什么ID 都给我返回BVID
+    def GetBVID(self, vid):
+        if (str(vid).lower().startswith('bv')): return vid
+        else: return self.AID2BVID(vid)
+
+    # 文本转时间
+    def StrToDuration(self, strduration):
+        datas = strduration.split(':')
+        if (len(datas)==3):
+            hour = int(datas[0])
+            minute = int(datas[1])
+            second = int(datas[2])
+        else:
+            hour = 0
+            minute = int(datas[0])
+            second = int(datas[1])
+        #
+        duration = hour*3600 + minute*60 + second
+        return duration
+
+    # 时间转文本
+    def DurationToStr(self, duration):
+        return '%02d:%02d' % divmod(duration, 60)
+
     # 获取用户所有视频信息
     def GetSubmitVideos(self, mid, page=0, pagesize=20):
         # https://space.bilibili.com/ajax/member/getSubmitVideos?mid=11433771&page=1&pagesize=100
@@ -121,7 +150,10 @@ class BilibiliClient:
         if (res == None or res['status'] == False): raise Exception('fail to mid: %s' % mid)
         count = res['data']['count']
         pages = res['data']['pages']
-        for item in res['data']['vlist']: videos.append(item)
+        for item in res['data']['vlist']:
+            item['duration'] = self.StrToDuration(item['length'])
+            videos.append(item)
+
         #
         if (page == 0):
             for n in range(2, (count + pagesize - 1) / pagesize + 1):
@@ -402,6 +434,27 @@ class BilibiliClient:
             r[v] = self.HASH58[d]
         return ''.join(r)
 
+    # 获取用户所有关注的UP主
+    def GetFollowings(self, mid, page=0, pagesize=50):
+        # http://api.bilibili.com/x/relation/followings?vmid=955723
+        # 如果PAGE等于0 递归返回所有
+        followings = []
+        if (page == 0): url = u'http://api.bilibili.com/x/relation/followings?vmid={0}&page={1}&pagesize={2}'.format(mid, 1, pagesize)
+        else: url = u'http://api.bilibili.com/x/relation/followings?vmid={0}&page={1}&pagesize={2}'.format(mid, page, pagesize)
+        #
+        res = self.GetJson(url)
+        if (res == None or res['code'] != 0): raise Exception('followings fail to mid: %s' % mid)
+        count = res['data']['total']
+        for item in res['data']['list']:
+            followings.append(item)
+
+        #
+        if (page == 0):
+            for n in range(2, (count + pagesize - 1) / pagesize + 1):
+                morefollowings = self.GetFollowings(mid, n, pagesize)
+                followings.extend(morefollowings)
+
+        return followings
 
 
 # 任务中心
@@ -461,9 +514,10 @@ class TasksServer:
             #
             if (record):
                 # 更新原来的视频信息
-                command = r'update PAGES set AID=?, PAGE=?, PART=?, DURATION=?, DIMENSION=? where BVID=? and CID=?'
-                args = (aid, page, part, duration, dimension, bvid, cid)
-                cursor.execute(command, args)
+                continue
+                # command = r'update PAGES set AID=?, PAGE=?, PART=?, DURATION=?, DIMENSION=? where BVID=? and CID=?'
+                # args = (aid, page, part, duration, dimension, bvid, cid)
+                # cursor.execute(command, args)
             else:
                 # 插入新记录
                 command = r'insert into PAGES(BVID, AID, CID, PAGE, PART, DURATION, DIMENSION) values(?,?,?,?,?,?,?)'
@@ -487,7 +541,7 @@ class TasksServer:
         ctime = data['ctime']               # 视频审核通过时间 秒
         desc = data['desc']                 # 视频简介
         state = data['state']               # 视频状态
-        attribute = data['attribute']       # 视频属性
+        attribute = 0 if 'attribute' not in data else data['attribute']       # 视频属性
         duration = data['duration']         # 视频总时长 秒
         rights = data['rights']             # 版权相关
         owner = data['owner']               # 视频作者
@@ -504,6 +558,7 @@ class TasksServer:
         stat = json.dumps(stat)             # 统计
         dimension = json.dumps(dimension)   # 分辨率
         subtitle = json.dumps(subtitle)     # 联动
+        mtime = int(time.time())            # 信息录入时间
 
         #
         command = r'select BVID from VIDEOS where BVID=? limit 1'
@@ -517,11 +572,11 @@ class TasksServer:
             command = r'update VIDEOS set AID=?, VIDEOS=?, TID=?, TNAME=?, PIC=?, ' \
                       r'TITLE=?, PUBDATE=?, CTIME=?, DESC=?, STATE=?, ATTRIBUTE=?, ' \
                       r'DURATION=?, RIGHTS=?, OWNER=?, STAT=?, DYNAMIC=?, CID=?, ' \
-                      r'DIMENSION=?, NO_CACHE=?, SUBTITLE=?' \
+                      r'DIMENSION=?, NO_CACHE=?, SUBTITLE=?, MTIME=?' \
                       r'where BVID=?'
             args = (aid, videos, tid, tname, pic, title, pubdate, ctime, desc,
                     state, attribute, duration, rights, mid, stat, dynamic, cid,
-                    dimension, no_cache, subtitle, bvid)
+                    dimension, no_cache, subtitle, mtime, bvid)
             cursor = self._conn.cursor()
             cursor.execute(command, args)
         else:
@@ -529,11 +584,11 @@ class TasksServer:
             command = r'insert into VIDEOS(BVID, AID, VIDEOS, TID, TNAME, PIC, ' \
                       r'TITLE, PUBDATE, CTIME, DESC, STATE, ATTRIBUTE, ' \
                       r'DURATION, RIGHTS, OWNER, STAT, DYNAMIC, CID, ' \
-                      r'DIMENSION, NO_CACHE, SUBTITLE) ' \
-                      r'values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                      r'DIMENSION, NO_CACHE, SUBTITLE, MTIME) ' \
+                      r'values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
             args = (bvid, aid, videos, tid, tname, pic, title, pubdate, ctime, desc,
                     state, attribute, duration, rights, mid, stat, dynamic, cid,
-                    dimension, no_cache, subtitle)
+                    dimension, no_cache, subtitle, mtime)
             cursor = self._conn.cursor()
             cursor.execute(command, args)
         #
@@ -571,8 +626,36 @@ class TasksServer:
         cursor.close()
         self._conn.commit()
 
+    # 检查任务是否需要更新
+    def HaskVideos(self, vid, duration):
+        # 1. 信息录入时间 如果离上次查询时间小于24小时 直接跳过
+        # 2. 视频总时长 如果视频时长与数据库中的时长一致 直接跳过
+        # 3. 强制更新信息
+        bvid = self._bclient.GetBVID(vid)
+        command = r'select DURATION, MTIME from VIDEOS where BVID=?'
+        cursor = self._conn.cursor()
+        cursor.execute(command, (bvid,))
+        record = cursor.fetchone()
+        cursor.close()
+        #
+        if (record):
+            # 搜索到记录
+            res_duration = record[0]
+            res_mtime = record[1]
+            if (res_duration == None or res_mtime == None): return False
+            # 如果时长不一致则认为不存在 如果
+            if (math.fabs(res_duration - duration) > 10): return False
+            if (math.fabs(res_mtime - int(time.time())) > 1*24*60*60): return False
+            # 满足条件认为视频已存在
+            return True
+        else:
+            # 未搜索到记录
+            return False
+
     # 添加任务
-    def PushTask(self, vid):
+    def PushTask(self, vid, duration=0, force=False):
+        # 检查任务是否存在或者更新
+        if (force == False and self.HaskVideos(vid, duration) == True): return
         #
         res = self._bclient.GetDetails(vid)
         # 查询任务列表是否有
@@ -582,7 +665,6 @@ class TasksServer:
         aid = data['aid']
         owner = data['owner']
         pages = data['pages']
-
 
         # 1. 存储视频作者信息
         self.AddOwner(owner)
@@ -639,22 +721,30 @@ def main():
     #     taskServer.PushTask(aid)
 
 
+    mids = {}
+    res = bclient.GetFollowings(955723)
+    for item in res:
+        mids[item['mid']] = item['uname']
+
+
+
 
     # 循环我关注的UP主
-    mids = [7584632]
-
     for mid in mids:
         taskServer = TasksServer(conn, bclient)
         res = bclient.GetSubmitVideos(mid, 0, 25)
 
+
         num = 0
         count = len(res)
+        print 'mid: %s all videos > %d' % (mid, count)
         for item in res:
             num = num + 1
             title = item['title']
             aid = item['aid']
-            print '(% 4d/%d): % 5d - %d - %s' % (num, count, mid, aid, title)
-            taskServer.PushTask(aid)
+            duration = item['duration']
+            print u'(% 4d/%d): UP主% 5d - %s - AID: %d - %s' % (num, count, mid, mids[mid], aid, title)
+            taskServer.PushTask(aid, duration=duration)
 
     # res = bclient.GetDetails('BV1U7411t7sG')
     # print res

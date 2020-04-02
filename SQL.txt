@@ -1,31 +1,32 @@
-
+﻿
 
 --------
--- ����VIDEOS��
+-- 创建VIDEOS表
 CREATE TABLE IF NOT EXISTS [VIDEOS] (
-  [BVID] CHAR(16), 
-  [AID] INT, 
-  [VIDEOS] SMALLINT, 
-  [TID] SMALLINT, 
-  [TNAME] CHAR(32), 
-  [COPYRIGHT] SMALLINT, 
-  [PIC] CHAR(100), 
-  [TITLE] CHAR(200), 
-  [PUBDATE] INT, 
-  [CTIME] INT, 
-  [DESC] TEXT, 
-  [STATE] SMALLINT, 
-  [ATTRIBUTE] SMALLINT, 
-  [DURATION] SMALLINT, 
-  [RIGHTS] TEXT, 
-  [OWNER] INT, 
-  [STAT] TEXT, 
-  [DYNAMIC] CHAR(100), 
-  [CID] INT, 
-  [DIMENSION] TEXT, 
-  [NO_CACHE] BOOL, 
-  [SUBTITLE] TEXT, 
-  [MISSION_ID] INT, 
+  [BVID] CHAR(16),          -- BVID
+  [AID] INT,                -- AID
+  [VIDEOS] SMALLINT,        -- 总共多少分P
+  [TID] SMALLINT,           -- 分区ID
+  [TNAME] CHAR(32),         -- 子分区名称
+  [COPYRIGHT] SMALLINT,     -- 版权标志
+  [PIC] CHAR(100),          -- 视频封面图片url
+  [TITLE] CHAR(200),        -- 视频标题
+  [PUBDATE] INT,            -- 视频上传时间
+  [CTIME] INT,              -- 视频审核通过时间
+  [DESC] TEXT,              -- 视频简介
+  [STATE] SMALLINT,         -- 
+  [ATTRIBUTE] SMALLINT,     -- 
+  [DURATION] SMALLINT,      -- 视频总计持续时长（所有分P）
+  [RIGHTS] TEXT,            -- 版权信息
+  [OWNER] INT,              -- UP主
+  [STAT] TEXT,              -- 统计
+  [DYNAMIC] CHAR(100),      -- 视频同步发布的的动态的文字内容
+  [CID] INT,                -- 视频1P CID
+  [DIMENSION] TEXT,         -- 视频总计持续时长（所有分P）
+  [NO_CACHE] BOOL,          -- 
+  [SUBTITLE] TEXT,          -- 视频CC字幕
+  [MISSION_ID] INT,         -- 视频参与的活动ID
+  [MTIME] INT,              -- 信息录入时间
   CONSTRAINT [] PRIMARY KEY ([BVID]));
 
 CREATE INDEX IF NOT EXISTS [INDEX_VIDEOS_AID] ON [VIDEOS] ([AID]);
@@ -41,7 +42,7 @@ CREATE INDEX IF NOT EXISTS [INDEX_VIDEOS_OWNER] ON [VIDEOS] ([OWNER]);
 
 
 
--- ����OWNER��
+-- 添加OWNER表
 CREATE TABLE IF NOT EXISTS [OWNER] (
   [MID] INT, 
   [NAME] CHAR(32), 
@@ -51,7 +52,7 @@ CREATE TABLE IF NOT EXISTS [OWNER] (
 CREATE INDEX IF NOT EXISTS [INDEX_OWNER_NAME] ON [OWNER] ([NAME]);
 
 
--- ����PAGES��
+-- 添加PAGES表
 CREATE TABLE IF NOT EXISTS [PAGES] (
   [BVID] CHAR(16), 
   [AID] INT, 
@@ -72,7 +73,7 @@ CREATE INDEX [INDEX_PAGES_PART] ON [PAGES] ([PART]);
 
 
 
--- ����TASKS�����
+-- 添加TASKS任务表
 CREATE TABLE IF NOT EXISTS [TASKS] (
   [BVID] CHAR(16), 
   [AID] INT, 
@@ -94,7 +95,7 @@ CREATE INDEX [INDEX_TASKS_STATE] ON [TASKS] ([BVID]);
 
 
 
--- ����COOKIE��
+-- 添加COOKIE表
 CREATE TABLE IF NOT EXISTS [COOKIES] (
   [NAME] CHAR(32), 
   [VALS] TEXT, 
