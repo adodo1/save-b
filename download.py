@@ -661,6 +661,11 @@ class TasksServer:
         # 查询任务列表是否有
         if (res['code']!=0): raise Exception(res['message'])
         data = res['data']
+        if (data.has_key('pages') == False):
+            f = open('faile.txt', 'ab')
+            f.write(u'%s\r\n' % vid)
+            f.close()
+            return
         bvid = data['bvid']
         aid = data['aid']
         owner = data['owner']
@@ -728,9 +733,10 @@ def main():
 
 
 
-
+    index = 0
     # 循环我关注的UP主
     for mid in mids:
+        index = index + 1
         taskServer = TasksServer(conn, bclient)
         res = bclient.GetSubmitVideos(mid, 0, 25)
 
@@ -743,7 +749,7 @@ def main():
             title = item['title']
             aid = item['aid']
             duration = item['duration']
-            print u'(% 4d/%d): UP主% 5d - %s - AID: %d - %s' % (num, count, mid, mids[mid], aid, title)
+            print u'(% 4d/%d): [%03d/%d] UP主% 5d - %s - AID: %d - %s' % (num, count, index, len(mids), mid, mids[mid], aid, title)
             taskServer.PushTask(aid, duration=duration)
 
     # res = bclient.GetDetails('BV1U7411t7sG')
@@ -767,6 +773,7 @@ if __name__ == '__main__':
 
     # 已知BUG
     # av7748745 跳转到 ep
+    # av29482 无相关视频
 
     # 需要完成
     # 分P更新后 视频时间是否修改 av3179115 pubdate: 1446820390 ctime: 1497425394
