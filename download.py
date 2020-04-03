@@ -659,7 +659,12 @@ class TasksServer:
         #
         res = self._bclient.GetDetails(vid)
         # 查询任务列表是否有
-        if (res['code']!=0): raise Exception(res['message'])
+        if (res['code']!=0):
+            f = open('faile.txt', 'ab')
+            f.write(u'%s - %s\r\n' % (vid, res))
+            f.close()
+            return
+            # raise Exception(res['message'])
         data = res['data']
         if (data.has_key('pages') == False):
             f = open('faile.txt', 'ab')
@@ -736,7 +741,9 @@ def main():
     index = 0
     # 循环我关注的UP主
     for mid in mids:
+        #
         index = index + 1
+        print u'(% 3d/%d) 扫描UP主: %s' % (index, len(mids), mids[mid])
         taskServer = TasksServer(conn, bclient)
         res = bclient.GetSubmitVideos(mid, 0, 25)
 
