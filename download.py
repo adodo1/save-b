@@ -439,8 +439,8 @@ class BilibiliClient:
         # http://api.bilibili.com/x/relation/followings?vmid=955723
         # 如果PAGE等于0 递归返回所有
         followings = []
-        if (page == 0): url = u'http://api.bilibili.com/x/relation/followings?vmid={0}&page={1}&pagesize={2}'.format(mid, 1, pagesize)
-        else: url = u'http://api.bilibili.com/x/relation/followings?vmid={0}&page={1}&pagesize={2}'.format(mid, page, pagesize)
+        if (page == 0): url = u'http://api.bilibili.com/x/relation/followings?vmid={0}&pn={1}&ps={2}'.format(mid, 1, pagesize)
+        else: url = u'http://api.bilibili.com/x/relation/followings?vmid={0}&pn={1}&ps={2}'.format(mid, page, pagesize)
         #
         res = self.GetJson(url)
         if (res == None or res['code'] != 0): raise Exception('followings fail to mid: %s' % mid)
@@ -729,10 +729,10 @@ def main():
     mids = {}
     res = bclient.GetFollowings(955723)
     for item in res:
+        print item['mid'], item['uname']
         mids[item['mid']] = item['uname']
 
-
-
+    #
     index = 0
     # 循环我关注的UP主
     for mid in mids:
@@ -751,6 +751,10 @@ def main():
             duration = item['duration']
             print u'(% 4d/%d): [%03d/%d] UP主% 5d - %s - AID: %d - %s' % (num, count, index, len(mids), mid, mids[mid], aid, title)
             taskServer.PushTask(aid, duration=duration)
+
+
+
+
 
     # res = bclient.GetDetails('BV1U7411t7sG')
     # print res
