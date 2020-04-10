@@ -272,9 +272,12 @@ class BilibiliClient:
             f.close()
         else:
             f = open(u'%s/!%s.sh' % (outdir, namewithoutext), 'wb')
-            cmdline = u'cat "%%~dp0/%s*.block" > "%%~dp0/_%s.flv"\r\n' % (namewithoutext, namewithoutext)
-            cmdline += u'rm -f "%~dp0/*.block"\r\n'
-            cmdline += u'touch "%~dp0/@DONE"\r\n'
+            cmdline = u'UNION_DIR=$(cd `dirname $0`; pwd)\n'
+            cmdline += u'echo ${UNION_DIR}\n'
+            cmdline += u'cd ${UNION_DIR}\n'
+            cmdline += u'cat "%s*.block" > "_%s.flv"\n' % (namewithoutext, namewithoutext)
+            cmdline += u'rm -f "*.block"\n'
+            cmdline += u'touch "@DONE"\n'
             # 格式转换
             # cmdline += u'"%s/ffmpeg.exe" -y -i "%%~dp0/_%s.flv" -c copy "%%~dp0/_%s.mp4"\r\n' % (os.path.abspath(os.path.dirname(__file__)).decode('gbk'), namewithoutext, namewithoutext)
             # cmdline += u'del /q "%%~dp0/_%s.flv"\r\n' % namewithoutext
@@ -331,10 +334,17 @@ class BilibiliClient:
         #
         if (success):
             print('all done.')
-            cmdfile = u'%s/!%s.bat' % (outdir, name)
-            cmdfile = os.path.abspath(cmdfile).encode('gbk')
-            os.system(cmdfile)
-            print(cmdfile)
+            systemstr = platform.system()
+            if (systemstr.lower() == 'windows'):
+                cmdfile = u'%s/!%s.bat' % (outdir, name)
+                cmdfile = os.path.abspath(cmdfile).encode('gbk')
+                os.system(cmdfile)
+                print(cmdfile)
+            else:
+                cmdfile = u'%s/!%s.sh' % (outdir, name)
+                cmdfile = os.path.abspath(cmdfile).encode('gbk')
+                os.system(cmdfile)
+                print(cmdfile)
         else:
             print('error done.')
 
