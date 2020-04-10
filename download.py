@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys, os, re, requests, time, json, socket, threading, Queue, sqlite3, math
+import sys, os, re, requests, time, json, socket, threading, Queue, sqlite3, math, platform
 from threading import Thread
 #socket.setdefaulttimeout(20)                    # outtime set 20s
 mutex = threading.Lock()                        # 线程锁
@@ -163,7 +163,7 @@ class BilibiliClient:
         return videos
 
     # 下载视频
-    def DownloadVideos(self, aid, section=0, score=80):
+    def DownloadVideos(self, id, section=0, score=80):
         # aid: 视频AV号
         # section: 分P 等于0全下
         # score: 视频质量
@@ -171,10 +171,14 @@ class BilibiliClient:
         # 1. 先解析视频
         # 2. 再分P下载
         # 检查是否完成 @DONE 文件
+        #
+        aid = self.GetAID(id)
+        #
         alldonefile = u'%s/@DONE_%s' % (self._cachedir, aid)
         if (os.path.exists(alldonefile)): return
         #
         data = self.GetDetails(aid)
+        data = data['data']
         title = data['title']
         for item in data['pages']:
             page = item['page']
@@ -182,7 +186,8 @@ class BilibiliClient:
             part = item['part']
             if (section>0 and page!=section): continue
             # 新建目录 下载
-            outdir = u'%s/%s━%s/%s━%s/' % (self._cachedir, aid, self.StrToName(title), cid, self.StrToName(part))
+            # outdir = u'%s/%s━%s/%s━%s/' % (self._cachedir, aid, self.StrToName(title), cid, self.StrToName(part))
+            outdir = u'%s/%s/%s/' % (self._cachedir, aid, cid)
             self.DownloadSection(aid, cid, score, self.StrToName(part), outdir)
             
         # 通过@DONE检查数据是否都下载好了
@@ -193,7 +198,8 @@ class BilibiliClient:
             part = item['part']
             if (section>0 and page!=section): continue
             # 新建目录 下载
-            outdir = u'%s/%s━%s/%s━%s/' % (self._cachedir, aid, self.StrToName(title), cid, self.StrToName(part))
+            # outdir = u'%s/%s━%s/%s━%s/' % (self._cachedir, aid, self.StrToName(title), cid, self.StrToName(part))
+            outdir = u'%s/%s/%s/' % (self._cachedir, aid, cid)
             donefile = '%s%s' % (outdir, '@DONE')
             if (os.path.exists(donefile)==False): success = False
         #
@@ -242,7 +248,7 @@ class BilibiliClient:
             for item in data['data']['durl']:
                 durl = item['url']
                 print(u'>>>> download aid:%s cid:%s num:%d - %s' % (aid, cid, index, name))
-                self.DownloadFile(durl, outdir, u'%s%d' %(name, index))
+                self.DownloadFile(durl, outdir, u'%s%d' %('videos', index))
                 index = index + 1
         return
 
@@ -251,16 +257,32 @@ class BilibiliClient:
         # 下载文件
         if (os.path.exists(outdir) == False): os.makedirs(outdir)
         # 写合并脚本
-        f = open(u'%s/!%s.bat' % (outdir, namewithoutext), 'wb')
-        cmdline = u'copy /b "%%~dp0/%s*.block" "%%~dp0/_%s.flv"\r\n' % (namewithoutext, namewithoutext)
-        cmdline += u'del /q "%~dp0/*.block"\r\n'
-        cmdline += u'type nul > "%~dp0/@DONE"\r\n'
-        # 格式转换
-        cmdline += u'"%s/ffmpeg.exe" -y -i "%%~dp0/_%s.flv" -c copy "%%~dp0/_%s.mp4"\r\n' % (os.path.abspath(os.path.dirname(__file__)).decode('gbk'), namewithoutext, namewithoutext)
-        cmdline += u'del /q "%%~dp0/_%s.flv"\r\n' % namewithoutext
-        #
-        f.write(cmdline.encode('gbk'))
-        f.close()
+        systemstr = platform.system()
+
+        if (systemstr.lower()=='windows'):
+            f = open(u'%s/!%s.bat' % (outdir, namewithoutext), 'wb')
+            cmdline = u'copy /b "%%~dp0/%s*.block" "%%~dp0/_%s.flv"\r\n' % (namewithoutext, namewithoutext)
+            cmdline += u'del /q "%~dp0/*.block"\r\n'
+            cmdline += u'type nul > "%~dp0/@DONE"\r\n'
+            # 格式转换
+            cmdline += u'"%s/ffmpeg.exe" -y -i "%%~dp0/_%s.flv" -c copy "%%~dp0/_%s.mp4"\r\n' % (os.path.abspath(os.path.dirname(__file__)).decode('gbk'), namewithoutext, namewithoutext)
+            # cmdline += u'del /q "%%~dp0/_%s.flv"\r\n' % namewithoutext
+            #
+            f.write(cmdline.encode('gbk'))
+            f.close()
+        else:
+            f = open(u'%s/!%s.sh' % (outdir, namewithoutext), 'wb')
+            cmdline = u'cat "%%~dp0/%s*.block" > "%%~dp0/_%s.flv"\r\n' % (namewithoutext, namewithoutext)
+            cmdline += u'rm -f "%~dp0/*.block"\r\n'
+            cmdline += u'touch "%~dp0/@DONE"\r\n'
+            # 格式转换
+            # cmdline += u'"%s/ffmpeg.exe" -y -i "%%~dp0/_%s.flv" -c copy "%%~dp0/_%s.mp4"\r\n' % (os.path.abspath(os.path.dirname(__file__)).decode('gbk'), namewithoutext, namewithoutext)
+            # cmdline += u'del /q "%%~dp0/_%s.flv"\r\n' % namewithoutext
+            #
+            f.write(cmdline.encode('gbk'))
+            f.close()
+
+
         # 获取文件大小 计算要多少分块
         size = self.GetSize(url)
         self._count = size / BLOCK_SIZE + 1
@@ -730,37 +752,38 @@ def main():
     #     print '%d - %s' % (aid, title)
     #     taskServer.PushTask(aid)
 
+    bclient.DownloadVideos('BV1W4411d7PE')
 
-    mids = {}
-    res = bclient.GetFollowings(955723)
-    for item in res:
-        print item['mid'], item['uname']
-        mids[item['mid']] = item['uname']
-
+    # =============================================
+    # mids = {}
+    # res = bclient.GetFollowings(955723)
+    # for item in res:
+    #     print item['mid'], item['uname']
+    #     mids[item['mid']] = item['uname']
     #
-    index = 0
-    # 循环我关注的UP主
-    for mid in mids:
-        #
-        index = index + 1
-        print u'(% 3d/%d) 扫描UP主: %s' % (index, len(mids), mids[mid])
-        taskServer = TasksServer(conn, bclient)
-        res = bclient.GetSubmitVideos(mid, 0, 25)
+    # #
+    # index = 0
+    # # 循环我关注的UP主
+    # for mid in mids:
+    #     #
+    #     index = index + 1
+    #     print u'(% 3d/%d) 扫描UP主: %s' % (index, len(mids), mids[mid])
+    #     taskServer = TasksServer(conn, bclient)
+    #     res = bclient.GetSubmitVideos(mid, 0, 25)
+    #
+    #
+    #     num = 0
+    #     count = len(res)
+    #     print 'mid: %s all videos > %d' % (mid, count)
+    #     for item in res:
+    #         num = num + 1
+    #         title = item['title']
+    #         aid = item['aid']
+    #         duration = item['duration']
+    #         print u'(% 4d/%d): [%03d/%d] UP主% 5d - %s - AID: %d - %s' % (num, count, index, len(mids), mid, mids[mid], aid, title)
+    #         taskServer.PushTask(aid, duration=duration)
 
-
-        num = 0
-        count = len(res)
-        print 'mid: %s all videos > %d' % (mid, count)
-        for item in res:
-            num = num + 1
-            title = item['title']
-            aid = item['aid']
-            duration = item['duration']
-            print u'(% 4d/%d): [%03d/%d] UP主% 5d - %s - AID: %d - %s' % (num, count, index, len(mids), mid, mids[mid], aid, title)
-            taskServer.PushTask(aid, duration=duration)
-
-
-
+    # =============================================
 
 
     # res = bclient.GetDetails('BV1U7411t7sG')
