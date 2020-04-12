@@ -271,18 +271,19 @@ class BilibiliClient:
             f.write(cmdline.encode('gbk'))
             f.close()
         else:
-            f = open(u'%s/!%s.sh' % (outdir, namewithoutext), 'wb')
+            f = open(u'%s/_%s.sh' % (outdir, namewithoutext), 'wb')
             cmdline = u'UNION_DIR=$(cd `dirname $0`; pwd)\n'
             cmdline += u'echo ${UNION_DIR}\n'
             cmdline += u'cd ${UNION_DIR}\n'
-            cmdline += u'cat "%s*.block" > "_%s.flv"\n' % (namewithoutext, namewithoutext)
-            cmdline += u'rm -f "*.block"\n'
-            cmdline += u'touch "@DONE"\n'
+            cmdline += u'cat %s*.block > _%s.flv\n' % (namewithoutext, namewithoutext)
+            cmdline += u'touch @DONE\n'
+            cmdline += u'rm -f *.block\n'
+            cmdline += u'rm -f %s/_%s.sh\n'  % (outdir, namewithoutext)
             # 格式转换
             # cmdline += u'"%s/ffmpeg.exe" -y -i "%%~dp0/_%s.flv" -c copy "%%~dp0/_%s.mp4"\r\n' % (os.path.abspath(os.path.dirname(__file__)).decode('gbk'), namewithoutext, namewithoutext)
             # cmdline += u'del /q "%%~dp0/_%s.flv"\r\n' % namewithoutext
             #
-            f.write(cmdline.encode('gbk'))
+            f.write(cmdline)
             f.close()
 
 
@@ -336,13 +337,12 @@ class BilibiliClient:
             print('all done.')
             systemstr = platform.system()
             if (systemstr.lower() == 'windows'):
-                cmdfile = u'%s/!%s.bat' % (outdir, name)
+                cmdfile = u'%s/_%s.bat' % (outdir, name)
                 cmdfile = os.path.abspath(cmdfile).encode('gbk')
                 os.system(cmdfile)
                 print(cmdfile)
             else:
-                cmdfile = u'%s/!%s.sh' % (outdir, name)
-                cmdfile = os.path.abspath(cmdfile).encode('gbk')
+                cmdfile = u'bash %s/_%s.sh' % (outdir, name)
                 os.system(cmdfile)
                 print(cmdfile)
         else:
@@ -762,7 +762,7 @@ def main():
     #     print '%d - %s' % (aid, title)
     #     taskServer.PushTask(aid)
 
-    bclient.DownloadVideos('BV1W4411d7PE')
+    bclient.DownloadVideos('BV1az411b7Nh')
 
     # =============================================
     # mids = {}
